@@ -1,14 +1,29 @@
-# See https://redoc.ly/docs/cli/configuration/ for more information.
-apiDefinitions:
-  main: openapi/openapi.yaml
-lint:
-  extends:
-    - recommended
-  rules:
-    no-unused-components: warning
-referenceDocs:
-  htmlTemplate: ./docs/index.html
-  theme:
-    colors:
-      primary:
-        main: "#32329f"
+apis:
+  main:
+    root: openapi.yaml
+    rules:
+      no-unused-components: warn
+theme:
+  openapi:
+    htmlTemplate: ./docs/index.html
+    theme:
+      spacing:
+        sectionVertical: 30
+      sidebar:
+        backgroundColor: "#00253d"
+        textColor: "rgba(255, 255, 255, 0.55)"
+        activeTextColor: "#ffffff"
+      typography:
+        fontSize: "16px"
+        fontFamily: "IBM Plex Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol"
+        headings:
+          fontFamily: "IBM Plex Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol"
+        code:
+          fontFamily: "Consolas, Courier New, monospace"
+      logo:
+        gutter: "15px 10px"
+        maxHeight: "60px"
+        #maxWidth: "200px"
+      colors:
+        primary:
+          main: "#32329f"

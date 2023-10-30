@@ -2,12 +2,13 @@
   "name": "termino-hotel-api",
   "version": "1.0.0",
   "dependencies": {
-    "@redocly/openapi-cli": "^1.0.0-beta.95"
+    "@redocly/cli": "^1.2.0"
   },
   "private": true,
   "scripts": {
-    "start": "openapi preview-docs",
-    "build": "openapi bundle -o dist",
-    "test": "openapi lint"
+    "start": "redocly preview-docs --port 8090",
+    "build": "redocly bundle -o dist/dist.yaml",
+    "test": "redocly lint",
+		"build-page": "redocly build-docs -o dist/index.html && cp docs/*.{png,svg} dist/"
   }
 }
