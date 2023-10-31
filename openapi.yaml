@@ -127,9 +127,11 @@ info:
     ### 2023
     
     #### x. x. 2023
-     - Deprecate `occupations` and `occupations-update` endpoints. Use capacities instead
+     - Added children ages and bed entitlement to reservation data (`reservation.children`)
+     - Added meal plan to reservation data (`reservation.meal`)
+     - Deprecate `occupations` and `occupations-update` endpoints to be used for blockages. Use capacities instead.
      - Deprecate `rooms` parameter from RoomType structure. Only `roomCount` parameter is now needed to define room type structure
-     - Added children ages and bed entitlement to reservation data
+     - Deprecate `roomId` parameter from Occupation and Reservation structure. Only `roomTypeId` parameter is now needed to define occupation
     
     ### 2021
     
@@ -142,13 +144,13 @@ info:
      - Initial release
 
 tags:
-  - name: Pull endpoints
-    description: Pull endpoints should by implemented by PMS/CM side and are called by Termino, either periodically or when specific action is performed (eg. hotel connection).
-  - name: Push endpoints
+  - name: Termino endpoints
     description: > 
-      Push endpoints, are called by PMS/CM system to deliver updates to Termino side.
+      Endpoints on Termino side are called from PMS/CM system and mostly used to push data changes.
       
       **If unsuccessful response is returned, the request has to be repeated until it is successfully delivered to Termino.**
+  - name: PMS/CM endpoints
+    description: Partner endpoints should be implemented in your PMS/CM system and are called by Termino, either periodically or when specific action is performed (eg. new reservation, hotel connection).
 servers:
   - url: 'https://www.termino.eu/api/v1'
   - url: 'https://example.com/your-api-address'
@@ -159,7 +161,7 @@ paths:
     post:
       operationId: "hotel"
       tags:
-        - Pull endpoints
+        - PMS/CM endpoints
       summary: "Hotel info and Room Types"
       description: >
         Information about hotel for registration process and structure of room type and rooms.
@@ -208,7 +210,7 @@ paths:
     post:
       operationId: "capacities"
       tags:
-        - Pull endpoints
+        - PMS/CM endpoints
       summary: "Capacities"
       description: >
         Synchronizing available space.
@@ -268,7 +270,7 @@ paths:
     post:
       operationId: "reservation"
       tags:
-        - "Pull endpoints"
+        - "PMS/CM endpoints"
       summary: "Create/update reservation"
       description: >
         Creating new reservations, updating reservations, canceling reservations.
@@ -358,7 +360,7 @@ paths:
       - url: 'https://example.com/your-api-address'
     post:
       tags:
-        - "Pull endpoints"
+        - "PMS/CM endpoints"
       summary: "Reservation query"
       operationId: "getReservation"
       description: >
@@ -414,13 +416,13 @@ paths:
     post:
       operationId: "occupations"
       tags:
-        - Pull endpoints
+        - PMS/CM endpoints
       summary: "Reservations search"
       description: >
         **This endpoint was previously used as alternative to `/capacities`. This usage is deprecated. Use capacities instead.**
         
         
-        Synchronization of changes in reservations created by Termino/Slevomat. This allows changes in reservation made in PMS to be propagated to Termino and Slevomat. Changes can also be pushed via [/occupations-update](#tag/Push-endpoints/operation/occupations-update) endpoint.
+        Synchronization of changes in reservations created by Termino/Slevomat. This allows changes in reservation made in PMS to be propagated to Termino and Slevomat. Changes can also be pushed via [/occupations-update](#tag/Termino-endpoints/operation/occupations-update) endpoint.
         
         
         Usage:
@@ -473,14 +475,14 @@ paths:
       - url: 'https://example.com/your-api-address'
     post:
       tags:
-        - "Pull endpoints"
+        - "PMS/CM endpoints"
       summary: "Ping"
       operationId: "ping"
       description: >
         Ping endpoint is used to check if hotel exists and synchronization is active on your side.
         
         
-        If you implement [/hotel](#tag/Pull-endpoints/operation/hotel) endpoint, you can ignore this endpoint.
+        If you implement [/hotel](#tag/PMSCM-endpoints/operation/hotel) endpoint, you can ignore this endpoint.
         
         
         Usage:
@@ -524,7 +526,7 @@ paths:
     post:
       operationId: "occupations-update"
       tags:
-        - Push endpoints
+        - Termino endpoints
       summary: "Occupations (push)"
       description: >
         Synchronization of changed reservations on the hotel side.
@@ -536,7 +538,7 @@ paths:
         Usage:
         
          - Partner changes Slevomat reservation in their system and this endpoint is called to update the reservation in Termino/Slevomat
-         - **Deprecated** Pushing blockage and reservation updates when using pull endpoint [/occupations](#tag/Pull-endpoints/operation/occupations)
+         - **Deprecated** Pushing blockage and reservation updates when using pull endpoint [/occupations](#tag/PMSCM-endpoints/operation/occupations)
         
         
         Updates of occupations in multiple hotels has to be sent in multiple requests.
@@ -585,7 +587,7 @@ paths:
     post:
       operationId: "capacities-update"
       tags:
-        - Push endpoints
+        - Termino endpoints
       summary: "Capacities (push)"
       description: >
         Synchronization of changed capacities
@@ -639,7 +641,7 @@ paths:
     post:
       operationId: "hotel-update"
       tags:
-        - Push endpoints
+        - Termino endpoints
       summary: "Hotel update (push)"
       description: >
         Synchronization of changed hotel info and structure.
@@ -693,10 +695,12 @@ paths:
             default: ''
     post:
       operationId: 'hotel-info'
+      tags:
+        - Termino endpoints
       summary: 'Hotel info (reversed)'
       description: >
         
-        Provides same information as [/hotel](#tag/Pull-endpoints/operation/hotel) endpoint, but in reversed direction. This endpoint is called by CM to load room types created on Termino side and set up mapping.
+        Provides same information as [/hotel](#tag/PMSCM-endpoints/operation/hotel) endpoint, but in reversed direction. This endpoint is called by CM to load room types created on Termino side and set up mapping.
 
       requestBody:
         required: true
@@ -884,9 +888,9 @@ components:
       required:
         - "id"
         - "type"
-        - "roomId"
         - "created"
         - "term"
+        - "roomTypeId"
       properties:
         id:
           oneOf:
@@ -905,6 +909,12 @@ components:
             - type: "string"
             - type: "integer"
           description: "Your room id."
+          deprecated: true
+        roomTypeId:
+          oneOf:
+            - type: "string"
+            - type: "integer"
+          description: "Room type id."
         created:
           type: "string"
           format: "date-time"
@@ -962,6 +972,7 @@ components:
             - type: "string"
             - type: "integer"
           description: "Id of room."
+          deprecated: true
         term:
           $ref: "#/components/schemas/DateInterval"
         price:
