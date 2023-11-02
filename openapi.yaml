@@ -4,10 +4,7 @@ info:
   title: Termino Hotel API
   x-logo:
     url: './logo.svg'
-  description: >
-    
-    <span style="color:red">**This is pre-release version of API documentation. See https://docs.termino.eu for current documentation.**</span>
-    
+  description: >   
     
     This document outlines the API of [Termino](https://www.termino.eu), utilized by Slevomat to enable the sale of online bookings on [Slevomat.cz](https://www.slevomat.cz) and [Zlavomat.sk](https://www.zlavomat.sk).
     
@@ -126,9 +123,10 @@ info:
     
     ### 2023
     
-    #### x. x. 2023
+    #### 2. 11. 2023
      - Added children ages and bed entitlement to reservation data (`reservation.children`)
      - Added meal plan to reservation data (`reservation.meal`)
+     - Added e-mail address to reservation data (`reservation.contact.email`)
      - Deprecate `occupations` and `occupations-update` endpoints to be used for blockages. Use capacities instead.
      - Deprecate `rooms` parameter from RoomType structure. Only `roomCount` parameter is now needed to define room type structure
      - Deprecate `roomId` parameter from Occupation and Reservation structure. Only `roomTypeId` parameter is now needed to define occupation
@@ -979,7 +977,7 @@ components:
           $ref: "#/components/schemas/Price"
         meal:
           type: "string"
-          enum: ["breakfast", "halfBoard", "fullBoard", "allInclusive"]
+          enum: ["none", "breakfast", "half_board", "full_board", "all_inclusive"]
           description: "Meal type included in package."
         adultsCount:
           type: "integer"
@@ -1014,6 +1012,7 @@ components:
           required:
             - "name"
             - "phone"
+            - "email"
           properties:
             name:
               type: "string"
@@ -1021,6 +1020,9 @@ components:
             phone:
               type: "string"
               description: "Contact person phone number."
+            email:
+              type: "string"
+              description: "Contact person email address."
 
 
     ReservationGroup:
