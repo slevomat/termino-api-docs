@@ -998,6 +998,7 @@ components:
                 description: "Age of child."
               bedEntitlement:
                 type: "boolean"
+                description: "Whether child is entitled to a separate bed."
         guestNote:
           type: "string"
           nullable: true
