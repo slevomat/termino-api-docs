@@ -150,7 +150,7 @@ tags:
   - name: PMS/CM endpoints
     description: Partner endpoints should be implemented in your PMS/CM system and are called by Termino, either periodically or when specific action is performed (eg. new reservation, hotel connection).
 servers:
-  - url: 'https://www.termino.eu/api/v1'
+  - url: 'https://www.termino.eu/api/hotel/v1'
   - url: 'https://example.com/your-api-address'
 paths:
   /hotel:
@@ -520,7 +520,7 @@ paths:
 
   /occupations-update:
     servers:
-      - url: 'https://www.termino.eu/api/v1'
+      - url: 'https://www.termino.eu/api/hotel/v1'
     post:
       operationId: "occupations-update"
       tags:
@@ -581,7 +581,7 @@ paths:
 
   /capacities-update:
     servers:
-      - url: 'https://www.termino.eu/api/v1'
+      - url: 'https://www.termino.eu/api/hotel/v1'
     post:
       operationId: "capacities-update"
       tags:
@@ -635,7 +635,7 @@ paths:
                 "#/components/schemas/HotelNotFoundError"
   /hotel-update:
     servers:
-      - url: 'https://www.termino.eu/api/v1'
+      - url: 'https://www.termino.eu/api/hotel/v1'
     post:
       operationId: "hotel-update"
       tags:
@@ -669,8 +669,13 @@ paths:
                     - type: "integer"
                   description: "Your hotel id."
                 hotel:
-                  $ref: "#/components/schemas/HotelInfo"
+                  $ref: "#/components/schemas/Hotel"
                   description: "Updated hotel info."
+                roomTypes:
+                  type: "array"
+                  items:
+                    $ref: "#/components/schemas/RoomType"
+                  description: "Updated room types."
       responses:
         200:
           description: "Successful response"
@@ -685,12 +690,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/HotelNotFoundError"
 
-  '{termino-api-url}/hotel':
+  /get-hotel:
     servers:
-      - url: 'https://www.termino.eu/api/v1'
-        variables:
-          termino-api-url:
-            default: ''
+      - url: 'https://www.termino.eu/api/hotel/v1'
     post:
       operationId: 'hotel-info'
       tags:
@@ -782,8 +784,7 @@ components:
               enum: [ "insufficient-capacities" ]
               description: "Cannot create reservation due to reserved or blocked rooms (when creating or moving reservation)"
 
-
-    HotelInfo:
+    Hotel:
       type: "object"
       properties:
         id:
@@ -796,6 +797,12 @@ components:
           example: "Hotel Example"
         address:
           $ref: "#/components/schemas/Address"
+
+    HotelInfo:
+      type: object
+      properties:
+        hotel:
+          $ref: "#/components/schemas/Hotel"
         roomTypes:
           type: "array"
           items:
