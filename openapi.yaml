@@ -663,11 +663,6 @@ paths:
                 accessToken:
                   type: "string"
                   description: "Access token to your API."
-                hotelId:
-                  oneOf:
-                    - type: "string"
-                    - type: "integer"
-                  description: "Your hotel id."
                 hotel:
                   $ref: "#/components/schemas/Hotel"
                   description: "Updated hotel info."
