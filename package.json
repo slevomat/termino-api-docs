@@ -6,7 +6,7 @@
   },
   "private": true,
   "scripts": {
-    "start": "redocly preview-docs --port 8090",
+    "start": "redocly preview-docs --port 18088",
     "build": "redocly bundle -o dist/dist.yaml",
     "test": "redocly lint",
 		"build-page": "redocly build-docs -o dist/index.html && cp docs/*.{png,svg} dist/"

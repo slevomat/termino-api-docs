@@ -315,25 +315,33 @@ paths:
             schema:
               $ref: "#/components/schemas/ReservationRequest"
             example:
-              id: 123456
-              status: "option"
-              roomTypeId: 123
-              term:
-                from: "2019-01-01"
-                to: "2019-01-02"
-              price:
-                amount: 1000
-                currency: "CZK"
-              adultsCount: 2
-              childrenCount: 1
-              children:
-                - age: 5
-                  bedEntitlement: true
-              guestNote: "I would like to have a room with a view."
-              voucher: "1234567890"
-              contact:
-                name: "John Doe"
-                phone: "+420123456789"
+              accessToken: "11-11-11-11"
+              hotelId: 123456
+              reservationGroup:
+                id: 123456
+                description: "New Year's Eve 2019"
+                totalPrice:
+                  amount: 1000
+                  currency: "CZK"
+                reservations:
+                  - id: 123456
+                    status: "option"
+                    roomTypeId: 123
+                    term:
+                      start: "2019-01-01"
+                      end: "2019-01-02"
+                    price:
+                      amount: 1000
+                      currency: "CZK"
+                    adultsCount: 2
+                    children:
+                      - age: 5
+                        bedEntitlement: true
+                    guestNote: "I would like to have a room with a view."
+                    voucher: "1234567890"
+                    contact:
+                      name: "John Doe"
+                      phone: "+420123456789"
       responses:
         200:
           description: "Successful response"
@@ -940,7 +948,13 @@ components:
     ReservationResponse:
       type: "object"
       properties:
-        reservation:
+        hotelId:
+          oneOf:
+            - type: "string"
+            - type: "integer"
+        accessToken:
+          type: "string"
+        reservationGroup:
           $ref: "#/components/schemas/ReservationGroup"
 
     Reservation:
