@@ -1,29 +1,29 @@
 openapi: 3.0.2
 info:
-  version: 1.1.0
+  version: "1.2"
   title: Termino Hotel API
   x-logo:
     url: './logo.svg'
-  description: >   
-    
-    This document outlines the API of [Termino](https://www.termino.eu), utilized by Slevomat to enable the sale of online bookings on [Slevomat.cz](https://www.slevomat.cz) and [Zlavomat.sk](https://www.zlavomat.sk).
-    
+  description: >
+
+    This document outlines the API of [Termino](https://www.termino.eu), utilized by Slevomat.cz, s.ro. to enable the sale of online bookings on [Slevomat.cz](https://www.slevomat.cz) and [Zlavomat.sk](https://www.zlavomat.sk).
+
+
     This API is used for connecting channel management (CM) and property management systems (PMS).
-    
+
     #### Core Functions of the API Include:
      - synchronization of hotel structure (room types and rooms) from CM/PMS to Termino or the other way around
      - synchronization of available capacities (free rooms) from CM/PMS to Termino
+     - synchronization of rates, prices and booking restrictions (stop sale, closed departure/arrival, MLOS)
      - issuing reservations from Termino to CM/PMS
      - bi-directional editing and canceling of reservations created from Termino
-    
-    **Note:** This API does not cover the synchronization of prices (rate plans), payments, or cancellation policies. These elements are beyond the scope of this API's functionalities.
-    
+
     ## 👋 Basics
 
     ### API Structure
 
     This API is bi-directional, meaning both sides can request or push information to the other's API. Given that this API covers various system setups, there are multiple ways to establish communication. The synchronization of hotel structure and capacities is typically achieved by CM/PMS pushing information to Termino. A periodic pull of capacity information can also be configured, but push is preferred as it facilitates faster change propagation and reduces traffic between systems.
-    
+
 
     Typical usage for channel managers includes:
      - Implementing the `reservation` and `ping` endpoints on your side
@@ -33,7 +33,7 @@ info:
     For property management systems, the typical usage involves:
      - Implementing the `hotel`, `reservation`, and `get-reservation` endpoints. The `ping` endpoint is not needed because the `hotel` endpoint should provide the same information (whether the hotel is active or not).
      - Depending on the pull or push style, implementing the `capacities` on your side or calling the `capacities-update` push endpoint on Termino to deliver updates.
-    
+
     ## 🔑 Security and Authentication
 
     All requests are required to communicate over HTTPS. Termino API endpoints support TLS protocol versions 1.2 and higher.
@@ -41,20 +41,20 @@ info:
     ### Authentication
 
     All requests contain the property `accessToken` with a value assigned during the API verification process. These values identify the communicating parties - CM/PMS on one side and Termino on the other.
-    
+
     ## 📡 Request and Response Format
 
     Both sides accept only `HTTP POST`. Requests and responses are sent with the `Content-Type` header set to `application/json` and a JSON body depending on the operation to be performed. Content encoding is always `UTF-8`.
-    
+
 
     If a message is received and processed, the HTTP response code should be `200 OK` for successful results and any `4xx` for unsuccessful results (the concrete error type is described in the response body).
-    
+
 
     `5xx` response codes indicate unexpected and internal errors, and the request can be retried without change. No specific response should be expected for server errors (JSON is not guaranteed). The response header `Retry-After` (if present) should be respected for retrying the request.
-    
+
 
     The type of message is determined by the URL.
-    
+
 
     For push endpoints, the request should be repeated until it is successfully delivered to Termino. Similarly, Termino will repeat requests until they are accepted by your system. Successful delivery means either responding with success or an expected error described in the API specification.
 
@@ -62,67 +62,131 @@ info:
 
      - All identifiers (parameters named id) have to be unique for a given hotel, unless explicitly stated otherwise.
      - All identifiers generated on the Termino side are UUIDs.
-     - All identifiers from your side can be either integers or strings. 
-
-    ### Reservation ID
-
-    Each reservation has to have a unique ID for reference between systems. This identifier is later used in case of modification and cancellation of the reservation is needed. Termino can either generate and send our identifier with reservation creation, or it can accept and later use the reservation ID returned in response. 
+     - All identifiers from your side can be either integers or strings.
     
-    Using the ID from Termino is preferred because it allows us to reference the reservation even in case this create request fails with a timeout or other unexpected error. When using your ID, another system or manual intervention is needed in this case.
+    ### Date interval
     
-    ### Basic request
+    Date intervals are represented as objects with `start` and `end` properties, both formatted as `YYYY-MM-DD`. The `start` date is inclusive, while the `end` date is exclusive. 
+    
+    
+    See [DateInterval](#components/schemas/DateInterval) schema for details.
     
     ```json
+
+    {
+        "start": "2020-01-01",
+        "end": "2020-01-31"
+    }
+
+    ```
     
+    
+    ### Basic request
+
+    ```json
+
     {
         "accessToken": "foobar",
         // other properties
     }
-    
+
     ```
-    
-    
+
+
     ### Basic success response
-    
+
     ```json
-    
+
     {
     	"success": true,
     }
-    
+
     ```
-    
+
     ### Basic error response
-    
+
     ```json
-    
+
     {
     	"error": {
     		"code": "invalid-access-token",
     		"message": "Access token not found."
     	}
     }
-    
+
     ```
-    
+
     ### Common error codes
-    
+
     These errors can occur on any API endpoint.
-    
-    
+
+
      | Code                   | Description                                                                          |
      |------------------------|------------------------------------------------------------------------------------- |
      | `invalid-format`       | Unparsable JSON                                                                      |
      | `missing-value`        | A required property is missing.                                                      |
      | `invalid-value`        | A property has invalid format (e.g., wrong date, time, datetime, interval, URL...).  |
      | `invalid-access-token` | Invalid or expired access token                                                      |
+
+    ## 🧩 Key concepts
     
+    ### Reservation ID
+
+    Each reservation has to have a unique ID for reference between systems. This identifier is later used in case of modification and cancellation of the reservation is needed. 
+        
+    Termino will preferably assign our identifier with reservation creation, or it can accept and later use the reservation ID returned in response. Using Termino's ID simplifies recovery from communication failures (phantom reservations).
+    
+    ### Money representation
+    
+    Money amounts are represented as strings in hundredths of currency unit. Currency is represented using ISO 4217 currency codes (e.g., "CZK" for Czech crowns, "EUR" for euros).
+    Supported currencies are CZK, PLN, EUR and HUF.
+    
+    
+    For example, an amount of one hundred Euros and fifty cents is represented as:
+    
+    ```json
+    
+    {
+        "amount": "10050",
+        "currency": "EUR"
+    }
+    
+    ```
+    
+    ### Rate plans
+
+    Rate plan represents a sellable combination of room type, board type and other commercial conditions (cancellation policy, restrictions, etc.). Each rate plan has:
+
+    - `id` – partner-defined identifier (e.g. "HB", "NRF")
+    - `name` – human readable name
+    - `pricingModel` – defines how prices are provided in planning updates (`per_room`, `per_person`, `per_occupancy`)
+
+    Rate plans are provided in:
+
+    - response of `/hotel` (`HotelInfo.ratePlans`)
+    - push updates via `/hotel-update` (`ratePlans`)
+    - planning data via `/planning` and `/planning-update` (`RatePlanPlanning`)
+    
+    
+    ### Pricing models
+    
+    Three pricing models are supported for receiving planning updates:
+    
+      - `per_room` - price is set per room and night
+      - `per_person` - price is set for count of persons and night
+      - `per_occupancy` - price set per night and occupancy (occupancy is specified count of adults and children)
+
     ## 🆕 Changelog
-    
+
     Changes to API and its documentation
-    
+
+    ### 2026
+
+    #### 29. 1. 2026
+     - Added support for synchronization of rates, prices and booking restrictions via [/planning-update](#tag/Termino-endpoints/operation/planning-update) and [/planning](#tag/PMSCM-endpoints/operation/planning) endpoints
+
     ### 2023
-    
+
     #### 2. 11. 2023
      - Added children ages and bed entitlement to reservation data (`reservation.children`)
      - Added meal plan to reservation data (`reservation.meal`)
@@ -130,22 +194,23 @@ info:
      - Deprecate `occupations` and `occupations-update` endpoints to be used for blockages. Use capacities instead.
      - Deprecate `rooms` parameter from RoomType structure. Only `roomCount` parameter is now needed to define room type structure
      - Deprecate `roomId` parameter from Occupation and Reservation structure. Only `roomTypeId` parameter is now needed to define occupation
-    
+
     ### 2021
-    
+
     #### 24. 11. 2021
      - Deprecate checkIn, checkOut and url parameters from hotel structure
-    
+
     ### 2020
-    
+
     #### 9. 1. 2020
      - Initial release
 
 tags:
   - name: Termino endpoints
-    description: > 
+    description: >
       Endpoints on Termino side are called from PMS/CM system and mostly used to push data changes.
-      
+
+
       **If unsuccessful response is returned, the request has to be repeated until it is successfully delivered to Termino.**
   - name: PMS/CM endpoints
     description: Partner endpoints should be implemented in your PMS/CM system and are called by Termino, either periodically or when specific action is performed (eg. new reservation, hotel connection).
@@ -160,14 +225,14 @@ paths:
       operationId: "hotel"
       tags:
         - PMS/CM endpoints
-      summary: "Hotel info and Room Types"
+      summary: "Hotel, rooms and rates"
       description: >
-        Information about hotel for registration process and structure of room type and rooms.
-        
-        
+        Information about hotel for connection process and structure of room types and rate plans.
+
+
         Usage:
-          - loading hotel info and structure when registering a new hotel
-          - synchronizing hotel structure - infrequent polling and request when wrong synchronization is detected (unknown room etc.)
+          - loading hotel info and structure when connecting new hotel to Termino
+          - synchronizing hotel structure
       requestBody:
         content:
           application/json:
@@ -210,13 +275,16 @@ paths:
       tags:
         - PMS/CM endpoints
       summary: "Capacities"
+      deprecated: true
       description: >
-        Synchronizing available space.
-        
-        
+
+        **This endpoint is deprecated is favor of more powerful [/planning](#tag/PMSCM-endpoints/operation/planning).** No removal is currently planned. Any new implementations should use [/planning](#tag/PMSCM-endpoints/operation/planning).
+
+
+        Synchronizing available rooms
+
         Usage:
          - called when new hotel is registered
-         - called after a new reservation is created or reservation fails
          - periodical synchronization of available space unless push endpoint is used
       requestBody:
         required: true
@@ -261,6 +329,65 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/HotelNotFoundError"
                   - $ref: "#/components/schemas/RoomTypeNotFoundError"
+  /planning:
+    servers:
+      - url: 'https://example.com/your-api-address'
+    post:
+      operationId: "planning"
+      tags:
+        - PMS/CM endpoints
+      summary: "Planning"
+      description: >
+
+        Synchronizing available rooms, prices and booking restrictions (stop sale, closed arrival/departure, minimal length of stay)
+        Usage:
+         - called when new hotel is registered
+         - periodical synchronization of available space, prices and restrictions unless push endpoint is used
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              required:
+                - "accessToken"
+                - "hotelId"
+                - "interval"
+              properties:
+                accessToken:
+                  type: "string"
+                  description: "Access token to your API."
+                hotelId:
+                  oneOf:
+                    - type: "string"
+                    - type: "integer"
+                  description: "Hotel id."
+                interval:
+                  $ref: "#/components/schemas/DateInterval"
+                roomTypeIds:
+                  type: "array"
+                  items:
+                    oneOf:
+                      - type: "string"
+                      - type: "integer"
+                  description: "Requested room type ids. When not provided, return planning for all room types of given hotel."
+      responses:
+        200:
+          description: "Successful response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanningResponse"
+        400:
+          description: "Expected error"
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/HotelNotFoundError"
+                  - $ref: "#/components/schemas/RoomTypeNotFoundError"
+
+
 
   /reservation:
     servers:
@@ -271,36 +398,45 @@ paths:
         - "PMS/CM endpoints"
       summary: "Create/update reservation"
       description: >
-        Creating new reservations, updating reservations, canceling reservations.
+        Used to create, update, and cancel reservations.
 
 
-        Behavior of this endpoint heavily depends on the agreed scheme of communication:
+        The exact behavior depends on the agreed communication scheme between Termino and your system.
 
 
-        ### 1 - Reservation Statuses:
+        ### 1 - Reservation Status Workflow
+        
+        #### A Dual-request mode (default)
+        
+        - First request — `status: option`
+          - Sent without customer data.
+          - Blocks the room for the requested stay.
+        - Second request — `status: confirmed`
+          - Includes customer data and final confirmation details.
+          - Finalizes the reservation.
+        
+        This approach allows **gradual state transitions** and is the recommended mode for most partners.
+        
+        > ⚠️ Important: Both `option` and `confirmed` statuses are expected to **block the room** in your system.
+        
+        #### B Single-request mode
+        
+          - The first `option` request already contains full customer data and voucher code.
+          - A subsequent `confirmed` request may still be sent but does not need to be processed or relayed to the hotel.
+          - This mode is best suited for OTAs and other systems that cannot modify reservations after creation (except through cancel & rebook).
 
-        The default scheme is "dual requests" - the first request contains `status: option` and does not contain customer data. The second request contains `status: confirmed` and includes customer data. This scheme allows more gradual control of the state of the reservation. **Both statuses are expected to block the room for the reservation.**
+        You should confirm the preferred mode during your integration setup.
 
 
-        The second option is "single request" - in this scheme, even the first request with `status: option` contains all customer data and the voucher code. The confirmation request is sent also with the same data but does not have to be relayed to the hotel. Single-request mode is more suited for systems which do not support modifying existing reservations without canceling them and creating a new one (OTA-like behavior). You should specify which behavior better suits your system capabilities when consulting the integration with Termino.
+        ### 2 - Reservation ID
 
-
-        ### 2 - Reservation ID:
-
-        For referencing reservations between Termino and your system, either your ID or our ID can be used. In case your ID is used, the first (`option`) request does not contain the property `id`. You have to generate and send it in response.
-
-
-        In case our ID is used, the first (`option`) request contains the property `id` with our ID. You have to store it and use it in all subsequent requests.
-
-
-        Using your ID can be problematic in case communication during the first request fails due to any unexpected error (timeout, outage, etc.). This may cause a reservation being created in your system, but not in Termino. That's why we prefer using our ID, which we can use to check and remove such un-synced reservation.
-
-
-        **Termino expects the room to be blocked for reservation when the `option` request is successfully processed.**
+          - You can use **your ID** (returned in the first response) or **Termino's ID** (preferred)
+          - Using Termino's ID simplifies recovery from communication failures
+          - Rooms must be blocked once an `option` request is processed successfully
 
 
         ### Usage:
-        
+
          - Called with status `option` and then `confirmed` when creating a new reservation (see above)
          - Called with `canceled` status to cancel the reservation
          - Called when changing booking date on customer's request
@@ -371,10 +507,10 @@ paths:
       operationId: "getReservation"
       description: >
         Request for current state of the reservation
-        
-        
+
+
         Usage:
-        
+
         - queried by Termino when a reservation disappears from synchronized interval (moved to another room, term, room deleted etc.) without being updated first (failsafe).
       requestBody:
         required: true
@@ -425,12 +561,8 @@ paths:
         - PMS/CM endpoints
       summary: "Reservations search"
       description: >
-        **This endpoint was previously used as alternative to `/capacities`. This usage is deprecated. Use capacities instead.**
-        
-        
         Synchronization of changes in reservations created by Termino/Slevomat. This allows changes in reservation made in PMS to be propagated to Termino and Slevomat. Changes can also be pushed via [/occupations-update](#tag/Termino-endpoints/operation/occupations-update) endpoint.
-        
-        
+
         Usage:
           - synchronizing occupation changes once a day
 
@@ -486,13 +618,13 @@ paths:
       operationId: "ping"
       description: >
         Ping endpoint is used to check if hotel exists and synchronization is active on your side.
-        
-        
+
+
         If you implement [/hotel](#tag/PMSCM-endpoints/operation/hotel) endpoint, you can ignore this endpoint.
-        
-        
+
+
         Usage:
-        
+
         - called periodically to check if hotels are still active
       requestBody:
         required: true
@@ -536,17 +668,13 @@ paths:
       summary: "Occupations (push)"
       description: >
         Synchronization of changed reservations on the hotel side.
-        
-        
-        **It is deprecated to send updates for other reservations then those created by Termino/Slevomat.** 
-        
-        
+
         Usage:
-        
+
          - Partner changes Slevomat reservation in their system and this endpoint is called to update the reservation in Termino/Slevomat
-         - **Deprecated** Pushing blockage and reservation updates when using pull endpoint [/occupations](#tag/PMSCM-endpoints/operation/occupations)
-        
-        
+         - Data with reservations that were not originated from Termino/Slevomat are ignored
+
+
         Updates of occupations in multiple hotels has to be sent in multiple requests.
 
       requestBody:
@@ -586,7 +714,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HotelNotFoundError"
+  /planning-update:
+    servers:
+      - url: 'https://www.termino.eu/api/hotel/v1'
+    post:
+      operationId: "planning-update"
+      tags:
+        - Termino endpoints
+      summary: "Capacities & planning (push)"
+      description: >
+        Planning update of available capacities, booking restrictions (stop sale, closed arrival, closed departure, minimal length of stay), rateplans and prices.
 
+
+        Granular updates are supported - you can include only availability, only rates, or both in the update. Similarly, rates update may include either prices or restrictions or both. Unchanged data should be omitted in the request.
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              required:
+                - "accessToken"
+                - "hotelId"
+              properties:
+                accessToken:
+                  type: "string"
+                  description: "Access token to your API."
+                hotelId:
+                  oneOf:
+                    - type: "string"
+                    - type: "integer"
+                  description: "Your hotel id."
+                update:
+                  type: "array"
+                  items:
+                    $ref: "#/components/schemas/PlanningUpdate"
+      responses:
+        200:
+          description: "Successful response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        400:
+          description: "Expected error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HotelNotFoundError"
   /capacities-update:
     servers:
       - url: 'https://www.termino.eu/api/hotel/v1'
@@ -595,12 +771,15 @@ paths:
       tags:
         - Termino endpoints
       summary: "Capacities (push)"
+      deprecated: true
       description: >
+        **This endpoint is deprecated in favor of more powerful [/planning-update](#tag/Termino-endpoints/operation/planning-update).** No removal is currently planned. Any new implementations should use [/planning-update](#tag/Termino-endpoints/operation/planning-update).
+        
+        
         Synchronization of changed capacities
         
         
         Usage:
-        
         
          - CM / PMS pushes capacity changes to Termino
 
@@ -640,7 +819,7 @@ paths:
           content:
             application/json:
               schema:
-                "#/components/schemas/HotelNotFoundError"
+                $ref: "#/components/schemas/HotelNotFoundError"
   /hotel-update:
     servers:
       - url: 'https://www.termino.eu/api/hotel/v1'
@@ -651,10 +830,10 @@ paths:
       summary: "Hotel update (push)"
       description: >
         Synchronization of changed hotel info and structure.
-        
-        
+
+
         Usage:
-        
+
          - CM / PMS pushes hotel info and structure changes to Termino
 
       requestBody:
@@ -672,13 +851,20 @@ paths:
                   type: "string"
                   description: "Access token to your API."
                 hotel:
-                  $ref: "#/components/schemas/Hotel"
+                  items:
+                    $ref: "#/components/schemas/Hotel"
                   description: "Updated hotel info."
                 roomTypes:
                   type: "array"
                   items:
                     $ref: "#/components/schemas/RoomType"
                   description: "Updated room types."
+                ratePlans:
+                  type: array
+                  description: "Updated rate plans."
+                  items:
+                    $ref: "#/components/schemas/RatePlan"
+
       responses:
         200:
           description: "Successful response"
@@ -702,8 +888,8 @@ paths:
         - Termino endpoints
       summary: 'Hotel info (reversed)'
       description: >
-        
-        Provides same information as [/hotel](#tag/PMSCM-endpoints/operation/hotel) endpoint, but in reversed direction. This endpoint is called by CM to load room types created on Termino side and set up mapping.
+
+        Provides same information as [/hotel](#tag/PMSCM-endpoints/operation/hotel) endpoint, but in reversed direction. This endpoint is called by CM to load room types and rate plans created on Termino side and set up mapping.
 
       requestBody:
         required: true
@@ -729,15 +915,13 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: "#/components/schemas/HotelInfo"
+                $ref: "#/components/schemas/HotelInfo"
         400:
           description: "Expected error"
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: "#/components/schemas/HotelNotFoundError"
+                $ref: "#/components/schemas/HotelNotFoundError"
 
 
 components:
@@ -759,7 +943,7 @@ components:
         - type: "object"
           properties:
             code:
-              enum: ["hotel-not-found"]
+              enum: [ "hotel-not-found" ]
               description: "Non-existing id or not authorized to this hotel"
 
     RoomTypeNotFoundError:
@@ -803,6 +987,9 @@ components:
 
     HotelInfo:
       type: object
+      required:
+        - hotel
+        - roomTypes
       properties:
         hotel:
           $ref: "#/components/schemas/Hotel"
@@ -810,6 +997,32 @@ components:
           type: "array"
           items:
             $ref: "#/components/schemas/RoomType"
+        ratePlans:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/RatePlan"
+
+
+    RatePlan:
+      type: object
+      required:
+        - id
+        - name
+        - pricingModel
+      properties:
+        id:
+          type: string
+          description: "Rate ID or rate code. Should be human readable (eg. DEFAULT, HB). Unique in context of hotel"
+          example: "HB"
+        name:
+          type: string
+          description: "Name of the rate plan"
+          example: "Half-board"
+        pricingModel:
+          type: string
+          enum: [ "per_room", "per_person", "per_occupancy" ]
+          description: "Pricing model used for this rate plan. Prices sent in planning updates has to follow this model."
+          example: "per_room"
 
     Address:
       type: "object"
@@ -833,7 +1046,7 @@ components:
       properties:
         id:
           type: "string"
-          description: "Your room type id"
+          description: "Room type id"
           example: "123456"
         name:
           type: "string"
@@ -867,6 +1080,8 @@ components:
                 example: "Room 125"
     DateInterval:
       type: "object"
+      description: > 
+        DateInterval is [start, end) – end date is exclusive.
       required:
         - "start"
         - "end"
@@ -878,7 +1093,7 @@ components:
         end:
           type: "string"
           format: "date"
-          description: "End date in the format 'yyyy-mm-dd'."
+          description: "End date in the format 'yyyy-mm-dd'. Exclusive."
 
     OccupationsResponse:
       type: "object"
@@ -907,8 +1122,8 @@ components:
           description: "Your occupation id."
         type:
           type: "string"
-          enum: ["reservation"]
-          description: "Type of occupation. `reservation` is only supported value, `blockage` is deprecated and ignored."
+          enum: [ "reservation" ]
+          description: "Type of occupation. `reservation` is only supported value"
         status:
           type: "string"
           description: "Reservation status; optional and ignored for blockages."
@@ -973,7 +1188,7 @@ components:
             - type: "integer"
           description: "Id of reservation."
         status:
-          enum: ["option", "confirmed", "canceled", "modified"]
+          enum: [ "option", "confirmed", "canceled", "modified" ]
           type: "string"
           description: "Reservation status."
         roomTypeId:
@@ -981,6 +1196,11 @@ components:
             - type: "string"
             - type: "integer"
           description: "Id of room type."
+        ratePlanId:
+          oneOf:
+            - type: "string"
+            - type: "integer"
+          description: "Id of associated rate plan. Filled only if rate plans are set-up."
         roomId:
           oneOf:
             - type: "string"
@@ -993,7 +1213,7 @@ components:
           $ref: "#/components/schemas/Price"
         meal:
           type: "string"
-          enum: ["none", "breakfast", "half_board", "full_board", "all_inclusive"]
+          enum: [ "none", "breakfast", "half_board", "full_board", "all_inclusive" ]
           description: "Meal type included in package."
         adultsCount:
           type: "integer"
@@ -1094,6 +1314,17 @@ components:
             $ref: "#/components/schemas/Capacity"
           description: "List of available capacities."
 
+    PlanningResponse:
+      type: "object"
+      required:
+        - "planning"
+      properties:
+        planning:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/PlanningUpdate"
+          description: "List of planning for requested room types."
+
     Capacity:
       type: "object"
       required:
@@ -1114,6 +1345,19 @@ components:
           description: "Count of free rooms in this interval."
           example: 5
 
+    RoomTypeAvailability:
+      type: "object"
+      required:
+        - "interval"
+        - "availableRooms"
+      properties:
+        interval:
+          $ref: "#/components/schemas/DateInterval"
+        availableRooms:
+          type: "integer"
+          description: "Count of free rooms in this interval."
+          example: 5
+
     SuccessResponse:
       type: "object"
       required:
@@ -1123,3 +1367,152 @@ components:
           type: "boolean"
           description: "Always true."
           example: true
+
+    BookingRestriction:
+      type: "object"
+      description: "Booking restrictions to be applied. Ommitted properties are considered unchanged."
+      properties:
+        closedForArrival:
+          type: boolean
+          description: "Room is closed for arrival in given interval"
+          default: false
+        closedForDeparture:
+          type: boolean
+          description: "Room is closed for departure in given interval"
+          default: false
+        stopSale:
+          type: boolean
+          description: "Room is not available for booking in given interval (arrival or stay is not allowed)"
+          default: false
+        minimalLengthOfStay:
+          type: integer
+          description: "Room allows booking with minimal length of stay in given interval"
+          default: 1
+          minimum: 1
+        maximalLengthOfStay:
+          type: integer
+          nullable: true
+          description: "Room allows booking with maximal length of stay in given interval. Null if not set."
+
+    PlanningUpdate:
+      type: "object"
+      description: "Granular update is supported. You can include either `availability`, `rates` and `roomTypeRestrictions` or any combination of them. Unchanged data should be omitted in the request. Same applies to `rates` updates - you can include either prices or restrictions or both."
+      required:
+        - "roomTypeId"
+      properties:
+        roomTypeId:
+          oneOf:
+            - type: "string"
+            - type: "integer"
+          description: "Id of room type."
+          example: 123
+        availability:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/RoomTypeAvailability"
+          description: "List of updated availability."
+        rates:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/RatePlanPlanning"
+          description: "List of rates updates."
+        roomTypeRestrictions:
+          type: "array"
+          items:
+            type: "object"
+            required:
+              - interval
+              - restrictions
+            properties:
+              interval:
+                $ref: "#/components/schemas/DateInterval"
+              restrictions:
+                $ref: "#/components/schemas/BookingRestriction"
+
+          description: "Room type-level booking restrictions to be applied on given intervals."
+
+    RatePlanPlanning:
+      type: "object"
+      required:
+        - "ratePlanId"
+        - "planning"
+      properties:
+        ratePlanId:
+          oneOf:
+            - type: "string"
+            - type: "integer"
+          description: "Id of rate plan."
+          example: "HB"
+        planning:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/RatePlanPlanningItem"
+
+    RatePlanPlanningItem:
+      type: "object"
+      description: "perRoomPrice/perPersonPriceMatrix/perOccupancyPriceMatrix have to be provided according to pricing model of given rate plan. Usage of incorrect pricing model property will be ignored."
+      properties:
+        interval:
+          $ref: "#/components/schemas/DateInterval"
+        perRoomPrice:
+          allOf:
+            - $ref: "#/components/schemas/Price"
+          description: "Price per night for given rate plan/room type in given interval. Required if pricing model is `per_room`."
+        perPersonPriceMatrix:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/PerPersonPrice"
+          description: "Matrix of prices per person count for given rate plan/room type in given interval. Required if pricing model is `per_person`."
+        perOccupancyPriceMatrix:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/OccupancyPrice"
+          description: "List of prices for different occupancies for given rate plan/room type in given interval. Required if pricing model is `per_occupancy`."
+        restrictions:
+          $ref: "#/components/schemas/BookingRestriction"
+          description: "Booking restrictions for given rate plan/room type in given interval."
+
+    OccupancyPrice:
+      type: "object"
+      required:
+        - "adultsCount"
+        - "childrenCount"
+        - "price"
+      properties:
+        adultsCount:
+          type: "integer"
+          description: "Count of adults."
+          example: 2
+        childrenCount:
+          type: "integer"
+          description: "Count of children."
+          example: 1
+        price:
+          allOf:
+            - $ref: "#/components/schemas/Price"
+          description: "Total price per night for given occupancy."
+        stopSale:
+          type: "boolean"
+          default: false
+          description: "Stop sale for given occupancy."
+          example: false
+
+    PerPersonPrice:
+      type: "object"
+      required:
+        - "personsCount"
+        - "price"
+        - "stopSale"
+      properties:
+        personsCount:
+          type: "integer"
+          description: "Count of persons."
+          example: 2
+        price:
+          allOf:
+            - $ref: "#/components/schemas/Price"
+          description: "Total price per night for given persons count."
+        stopSale:
+          type: "boolean"
+          description: "Stop sale for given persons count."
+          example: false
