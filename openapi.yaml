@@ -138,7 +138,7 @@ info:
     
     ### Money representation
     
-    Money amounts are represented as strings in hundredths of currency unit. Currency is represented using ISO 4217 currency codes (e.g., "CZK" for Czech crowns, "EUR" for euros).
+    Money amounts are represented as decimal strings with dot as decimal separator. Currency is represented using ISO 4217 currency codes (e.g., "CZK" for Czech crowns, "EUR" for euros).
     Supported currencies are CZK, PLN, EUR and HUF.
     
     
@@ -147,7 +147,7 @@ info:
     ```json
     
     {
-        "amount": "10050",
+        "amount": "100.50",
         "currency": "EUR"
     }
     
@@ -181,6 +181,9 @@ info:
     Changes to API and its documentation
 
     ### 2026
+    
+    #### 4. 3. 2026
+     - Fixed discrepancy between money representation in planning and reservation data. All prices is now represented as decimal strings with dot as decimal separator (e.g., "100.00" for one hundred).
 
     #### 29. 1. 2026
      - Added support for synchronization of rates, prices and booking restrictions via [/planning-update](#tag/Termino-endpoints/operation/planning-update) and [/planning](#tag/PMSCM-endpoints/operation/planning) endpoints
@@ -457,7 +460,7 @@ paths:
                 id: 123456
                 description: "New Year's Eve 2019"
                 totalPrice:
-                  amount: 1000
+                  amount: "1000.00"
                   currency: "CZK"
                 reservations:
                   - id: 123456
@@ -467,7 +470,7 @@ paths:
                       start: "2019-01-01"
                       end: "2019-01-02"
                     price:
-                      amount: 1000
+                      amount: "1000.00"
                       currency: "CZK"
                     adultsCount: 2
                     children:
@@ -1154,11 +1157,13 @@ components:
         amount:
           type: "string"
           format: "decimal"
-          description: "Money amount in basic units."
+          description: "Money amount represented as decimal string with dot as decimal separator."
+          example: "100.00"
         currency:
           type: "string"
           format: "ISO 4271 currency code"
           description: "Currency code."
+          example: "CZK"
 
     ReservationResponse:
       type: "object"
