@@ -1375,7 +1375,7 @@ components:
 
     BookingRestriction:
       type: "object"
-      description: "Booking restrictions to be applied. Ommitted properties are considered unchanged."
+      description: "Booking restrictions to be applied. Omitted properties are considered unchanged."
       properties:
         closedForArrival:
           type: boolean
@@ -1391,13 +1391,15 @@ components:
           default: false
         minimalLengthOfStay:
           type: integer
-          description: "Room allows booking with minimal length of stay in given interval"
+          description: "Bookings starting in given interval have to have this minimal length of stay. 1 is default."
           default: 1
           minimum: 1
         maximalLengthOfStay:
           type: integer
           nullable: true
-          description: "Room allows booking with maximal length of stay in given interval. Null if not set."
+          default: null
+          minimum: 0
+          description: "Bookings starting in given interval have to have this maximal length of stay. Null value means unlimited length of stay, 0 has same effect as closed for arrival."
 
     PlanningUpdate:
       type: "object"
